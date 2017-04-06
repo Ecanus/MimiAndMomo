@@ -7,15 +7,14 @@ using UnityEngine.UI;
 public class BoxController : MonoBehaviour, IPointerClickHandler {
 
 	public enum BoxState 
-	{FREEZE, STATIONARY, POSITIVE, NEGATIVE, 
-		FLOATING, MOVINGUP, MOVINGDOWN, MOVINGLEFT, MOVINGRIGHT, RETURNING};
+	{FREEZE, STATIONARY, POSITIVE, NEGATIVE, SIDERIGHT, SIDELEFT,
+		FLOATING, MOVINGUP, MOVINGDOWN, GLIDINGUP, GLIDINGDOWN, GLIDINGLEFT, GLIDINGRIGHT, RETURNING};
 
 	public BoxState _state;
 
-	/// <summary>
-	/// Force applied to make the box start moving
-	/// </summary>
-	private float moveForce;
+
+	private float moveSpeed;
+	private float glideSpeed;
 
 	/// <summary>
 	/// Bool prevent multiple buttons to be pressed while this instance is having a force applied to it
@@ -26,6 +25,12 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 	/// The rigid body component of this instance
 	/// </summary>
 	private Rigidbody2D _rb;
+
+	/// <summary>
+	/// The box collider component
+	/// </summary>
+	private BoxCollider2D _boxColl;
+	private Vector2 boxCollVec;
 
 	/// <summary>
 	/// State of this instance being highlighted
@@ -58,25 +63,17 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 
 
 	#region Proximity Checks
-	[SerializeField]
-	private bool occupiedAbove;
-	[SerializeField]
-	private bool occupiedBelow;
-	[SerializeField]
-	private bool occupiedLeft;
-	[SerializeField]
-	private bool occupiedRight;
+	public bool occupiedAbove;
+	public bool occupiedBelow;
+	public bool occupiedLeft;
+	public bool occupiedRight;
 	#endregion
 
 	#region Proximity Boxes
-	[SerializeField]
-	private BoxController aboveOccupant;
-	[SerializeField]
-	private BoxController belowOccupant;
-	[SerializeField]
-	private BoxController leftOccupant;
-	[SerializeField]
-	private BoxController rightOccupant;
+	public BoxController aboveOccupant;
+	public BoxController belowOccupant;
+	public BoxController leftOccupant;
+	public BoxController rightOccupant;
 	#endregion
 
 	#region Position Vectors
@@ -114,8 +111,6 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 
 	void Awake () {
 
-		moveForce = 40f;
-
 		// Get the unhighlighted image
 		_NormalSprite = GetComponent<Image> ().sprite;
 
@@ -123,6 +118,7 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		_text = transform.GetChild (0).GetComponent<Text>();
 
 		_rb = GetComponent<Rigidbody2D> ();
+		_rb.constraints = RigidbodyConstraints2D.FreezeAll;
 
 		// Set this instance's isHighlighted to false at start
 		isHighlighted = false;
@@ -133,8 +129,18 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 
 	void Start()
 	{
+		//_rb.constraints = RigidbodyConstraints2D.FreezeAll;
 		// Set initial position to this instance's startposition
 		_startPosition = transform.position;
+
+		_boxColl = GetComponent<BoxCollider2D> ();
+		boxCollVec = _boxColl.size;
+
+		moveSpeed = 10f;
+		glideSpeed = 9f;
+
+		GameManager.Boxes.Add (this);
+	
 	}
 
 	#region State Methods
@@ -143,22 +149,48 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		switch (_state) 
 		{
 		case BoxState.FREEZE:
-			resetStartPosition ();
 			_rb.constraints = RigidbodyConstraints2D.FreezeAll;
+			resetStartPosition ();
 			//_ButtonLock = false;
 			_state = BoxState.STATIONARY;
 			break;
 		case BoxState.STATIONARY:
+			boxCollVec.x = 30f;
+			boxCollVec.y = 30f;
+			_boxColl.size = boxCollVec;
 			break;
 		case BoxState.FLOATING:
+			boxCollVec.x = 28f;
+			boxCollVec.y = 28f;
+			_boxColl.size = boxCollVec;
 			break;
 		case BoxState.POSITIVE:
 			_rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+			boxCollVec.x = 15f;
+			boxCollVec.y = 30f;
+			_boxColl.size = boxCollVec;
 			checkAbove ();
 			break;
 		case BoxState.NEGATIVE:
 			_rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+			boxCollVec.x = 15f;
+			boxCollVec.y = 30f;
+			_boxColl.size = boxCollVec;
 			checkBelow ();
+			break;
+		case BoxState.SIDELEFT:
+			_rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+			boxCollVec.x = 30f;
+			boxCollVec.y = 15f;
+			_boxColl.size = boxCollVec;
+			checkLeft ();
+			break;
+		case BoxState.SIDERIGHT:
+			_rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+			boxCollVec.x = 30f;
+			boxCollVec.y = 15f;
+			_boxColl.size = boxCollVec;
+			checkRight ();
 			break;
 		//----------MOVEMENT CASES------------
 		case BoxState.MOVINGUP:
@@ -167,10 +199,32 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		case BoxState.MOVINGDOWN:
 			displace();
 			break;
-		case BoxState.MOVINGRIGHT:
+		//------------GLDING CASES------------------
+		case BoxState.GLIDINGUP:
+			boxCollVec.x = 15f;
+			boxCollVec.y = 30f;
+			_boxColl.size = boxCollVec;
 			glide();
 			break;
-		//-----------------------
+		case BoxState.GLIDINGDOWN:
+			boxCollVec.x = 15f;
+			boxCollVec.y = 30f;
+			_boxColl.size = boxCollVec;
+			glide ();
+			break;
+		case BoxState.GLIDINGLEFT:
+			boxCollVec.x = 30f;
+			boxCollVec.y = 15f;
+			_boxColl.size = boxCollVec;
+			glide ();
+			break;
+		case BoxState.GLIDINGRIGHT:
+			boxCollVec.x = 30f;
+			boxCollVec.y = 15f;
+			_boxColl.size = boxCollVec;
+			glide ();
+			break;
+		//-----------------------------------------
 		case BoxState.RETURNING:
 			checkDistanceToStart ();
 			break;
@@ -208,8 +262,20 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		case "Vertical":
 			_targetPosition.y += displacementAmount;
 			break;
+		case "Horizontal":
+			_targetPosition.x += displacementAmount;
+			break;
+		case "Glide_Up":
+			_targetPosition.y += 500f;
+			break;
+		case "Glide_Down":
+			_targetPosition.y -= 500f;
+			break;
 		case "Glide_Right":
 			_targetPosition.x += 500f;
+			break;
+		case "Glide_Left":
+			_targetPosition.x -= 500f;
 			break;
 		case "Stay":
 			_targetPosition.x += 0;
@@ -229,7 +295,7 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		float xThresh = Mathf.Abs (transform.position.x - _targetPosition.x);
 		float yThresh = Mathf.Abs (transform.position.y - _targetPosition.y);
 
-		if (xThresh <= 0.1f && yThresh <= 0.1f)
+		if (xThresh <= 0.1f && yThresh <= 0.05f)
 			return true;
 		else
 			return false;
@@ -249,7 +315,8 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		}
 
 		// Move the box to its targetPosition
-		transform.position = Vector3.Lerp (_previousPosition, _targetPosition, 1f * Time.deltaTime);
+		//transform.position = Vector3.Lerp (_previousPosition, _targetPosition, 4.5f * Time.deltaTime);
+		transform.position = Vector3.MoveTowards(_previousPosition, _targetPosition, moveSpeed * Time.deltaTime);
 		_previousPosition = transform.position;
 
 	
@@ -265,11 +332,12 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		{
 			_state = BoxState.FLOATING;
 			_floatingPosition = transform.position;
-			//_ButtonLock = false;
+			_ButtonLock = false;
 		}
 
 		// Move the box to its targetPosition
-		transform.position = Vector3.MoveTowards (_previousPosition, _targetPosition, 40f * Time.deltaTime);
+		transform.position = Vector3.MoveTowards (_previousPosition, _targetPosition, glideSpeed * Time.deltaTime);
+		//_rb.MovePosition(_previousPosition + transform.right * 10f * Time.deltaTime);
 		_previousPosition = transform.position;
 
 
@@ -285,7 +353,7 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		setDisplacementAmount (0);
 
 		Vector3 currPos = transform.position;
-		bool xCheck = (currPos.x - _startPosition.x) >= 0;
+		//bool xCheck = (currPos.x - _startPosition.x) >= 0;
 		bool yCheck = (currPos.y - _startPosition.y) >= 0;
 
 		if (yCheck) 
@@ -334,21 +402,68 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 
 	#endregion
 
-	#region Glide Methods
+	#region Glide Methods ------------------
 	private void checkCanGlide()
 	{
 		switch (_text.text) 
 		{
-		// Right Glide 
+		case "":
+			break;
+		// IF THIS INSTANCE HAS "o" AS TEXT VALUE
 		case "o":
+			// If its left Occupant has "p", and instance is not blocked to the right, glide right
+			// Prep right glide
 			if (leftOccupant != null && leftOccupant.getTextValue () == "p") 
 			{
 				//Debug.Log ("LeftOccupant not Null");
 				_rb.constraints = RigidbodyConstraints2D.FreezeRotation;
-				checkRight ();
+				checkGlideRight ();
+			}
+
+			// If its right Occupant has "k", and instance is not blocked to the left, glide left
+			// Prep left glide
+			if (rightOccupant != null && rightOccupant.getTextValue () == "k") 
+			{
+				_rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+				checkGlideLeft ();
 			}
 			break;
-		case "":
+
+		// IF THIS INSTANCE HAS "d" AS TEXT VALUE, Prep Down Glide
+		case "d":
+			// If its left Occupant has a vowel, and instance is not blocked below, glide down
+			if (leftOccupant != null && leftOccupant.getTextValue () == "o") 
+			{
+				//Debug.Log ("LeftOccupant not Null");
+				_rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+				checkGlideDown ();
+			}
+			break;
+		// IF THIS INSTANCE HAS "p" AS TEXT VALUE, Prep Up Glide on RIGHT sides
+		case "p":
+			// If its left Occupant has a vowel, and instance is not blocked below, glide down
+			if (leftOccupant != null && leftOccupant.getTextValue () == "o") 
+			{
+				_rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+				checkGlideUp ();
+			}
+			break;
+		// IF THIS INSTANCE HAS "b" AS TEXT VALUE, Prep Up Glide on LEFT side
+		case "b":
+			// If its left Occupant has a vowel, and instance is not blocked below, glide down
+			if (rightOccupant != null && rightOccupant.getTextValue () == "o") 
+			{
+				_rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+				checkGlideUp ();
+			}
+			break;
+		case "v":
+			// If its left Occupant has a vowel, and instance is not blocked below, glide up
+			if (rightOccupant != null && rightOccupant.getTextValue () == "o") 
+			{
+				_rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+				checkGlideDown ();
+			}
 			break;
 		default:
 			break;
@@ -384,6 +499,28 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		}
 	}
 
+	private void checkGlideUp()
+	{
+
+		// If no box is located immediately below, 
+		// move this instance down vertically
+		if (!occupiedAbove) 
+		{
+			setPositions ("Glide_Up");
+			//_ButtonLock = true;
+			_state = BoxState.GLIDINGUP;
+		}
+
+		// If both checks fail, do not move at all
+		else 
+		{
+			setPositions ("Stay");
+			_state = BoxState.STATIONARY;
+			_ButtonLock = false;
+		}
+	}
+
+
 	private void checkBelow()
 	{
 
@@ -405,16 +542,16 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		}
 	}
 
-	private void checkRight()
+	private void checkGlideDown()
 	{
 
 		// If no box is located immediately below, 
 		// move this instance down vertically
-		if (!occupiedRight) 
+		if (!occupiedBelow) 
 		{
-			setPositions ("Glide_Right");
+			setPositions ("Glide_Down");
 			//_ButtonLock = true;
-			_state = BoxState.MOVINGRIGHT;
+			_state = BoxState.GLIDINGDOWN;
 		}
 
 		// If both checks fail, do not move at all
@@ -425,6 +562,90 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 			//_ButtonLock = false;
 		}
 	}
+
+	private void checkRight()
+	{
+
+		// If no box is located immediately below, 
+		// move this instance down vertically
+		if (!occupiedRight) 
+		{
+			setPositions ("Horizontal");
+			//_ButtonLock = true;
+			_state = BoxState.MOVINGUP;
+		}
+
+		// If both checks fail, do not move at all
+		else 
+		{
+			setPositions ("Stay");
+			_state = BoxState.STATIONARY;
+			_ButtonLock = false;
+		}
+	}
+
+	private void checkGlideRight()
+	{
+
+		// If no box is located immediately below, 
+		// move this instance down vertically
+		if (!occupiedRight) 
+		{
+			setPositions ("Glide_Right");
+			//_ButtonLock = true;
+			_state = BoxState.GLIDINGRIGHT;
+		}
+
+		// If both checks fail, do not move at all
+		else 
+		{
+			setPositions ("Stay");
+			_state = BoxState.STATIONARY;
+			_ButtonLock = false;
+		}
+	}
+
+	private void checkLeft()
+	{
+
+		// If no box is located immediately below, 
+		// move this instance left horizontally
+		if (!occupiedLeft) 
+		{
+			setPositions ("Horizontal");
+			//_ButtonLock = true;
+			_state = BoxState.MOVINGDOWN;
+		}
+
+		// If both checks fail, do not move at all
+		else 
+		{
+			setPositions ("Stay");
+			_state = BoxState.STATIONARY;
+			_ButtonLock = false;
+		}
+	}
+
+	private void checkGlideLeft()
+	{
+
+		// If no box is located immediately below, 
+		// move this instance left horizontally
+		if (!occupiedLeft) 
+		{
+			setPositions ("Glide_Left");
+			//_ButtonLock = true;
+			_state = BoxState.GLIDINGLEFT;
+		}
+
+		// If both checks fail, do not move at all
+		else 
+		{
+			setPositions ("Stay");
+			_state = BoxState.STATIONARY;
+			_ButtonLock = false;
+		}
+	}
 		
 
 	/// <summary>
@@ -432,17 +653,24 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 	/// </summary>
 	/// <returns>The <see cref="System.Boolean"/>.</returns>
 	/// <param name="p_Object">P object.</param>
-	private bool distanceBetween(Transform p_Object)
+	private bool distanceBetween(GameObject p_Object)
 	{
-		float radiusCheck = p_Object.GetComponent<RectTransform> ().sizeDelta.y/2 +1;
-		float proxCheck = Vector3.Magnitude (transform.position - p_Object.position);
+		RectTransform collTransform = p_Object.GetComponent<RectTransform> ();
+		float radiusCheck = collTransform.sizeDelta.y+1;
 
-		if (proxCheck < radiusCheck)
+		float proxCheck = Vector3.Magnitude (GetComponent<RectTransform> ().anchoredPosition - collTransform.anchoredPosition);
+
+		//Debug.Log ("proxCheck: " + proxCheck);
+
+		if (proxCheck < radiusCheck) {
+			//Debug.Log ("proxCheck: " + proxCheck);
 			return true;
+		}
 		else
 			return false;
 	}
 	#endregion
+
 
 
 	#region Box Value modification
@@ -505,7 +733,7 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		switch (p_Value) 
 		{
 		case true:
-			_rb.mass = 1f;
+			_rb.mass = 0f;
 			break;
 		case false:
 			_rb.mass = 10f;
@@ -517,192 +745,331 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 
 
 	#region Collider2D Method
-	public void OnCollisionEnter2D(Collision2D coll)
+	public void OnTriggerEnter2D(Collider2D coll)
 	{ 
 
-		bool movingVertical = (_state == BoxState.MOVINGDOWN) || (_state == BoxState.MOVINGUP);
-		bool movingHorizontal = (_state == BoxState.MOVINGLEFT) || (_state == BoxState.MOVINGRIGHT);
+		bool movingVertical = (_state == BoxState.MOVINGDOWN) || (_state == BoxState.MOVINGUP) || (_state == BoxState.GLIDINGUP) || (_state == BoxState.GLIDINGDOWN);
+		bool movingHorizontal = (_state == BoxState.GLIDINGLEFT) || (_state == BoxState.GLIDINGRIGHT);
 		bool floating = (_state == BoxState.FLOATING);
 
+		Vector2 _CP = coll.gameObject.GetComponent<RectTransform>().anchoredPosition;
+		Vector2 myPos = GetComponent<RectTransform> ().anchoredPosition;
+		float eps = GetComponent<RectTransform>().sizeDelta.x/2;
 
 
-		foreach (ContactPoint2D _CP in coll.contacts) 
+		// Bools to check which side of the box is being made contact with
+		//bool xNormal = (Mathf.Abs (_CP.x) >= 0f);
+		//bool yNormal = (Mathf.Abs (_CP.y) >= 0f);
+
+
+		// HEAD ON COLLISION CHECKS 
+
+		// Moving Up collision
+		if (_CP.y > myPos.y)
+		//if ((movingVertical || floating) && _CP.normal.y < 0f)
 		{
 
-			// Bools to check which side of the box is being made contact with
-			bool xNormal = (Mathf.Abs (_CP.normal.x) >= 0f);
-			bool yNormal = (Mathf.Abs (_CP.normal.y) >= 0f);
-
-
-			// HEAD ON COLLISION CHECKS 
-
-			// Moving Up collision
-			if ((movingVertical || floating) && _CP.normal.y < 0f)
+			// If the distance between this instance's centre and the collision object's centre
+			// is small enough, then set occupied accordingly
+			if (isAbove(myPos, _CP, eps)) 
 			{
 				occupiedAbove = true;
 				aboveOccupant = coll.gameObject.GetComponent<BoxController> ();
-
-				_state = BoxState.FREEZE;
 			}
 
-			// Moving Down collision
-			if ((movingVertical || floating) && _CP.normal.y > 0f)
+			// If collision with border, push box to the border's peripheral
+			if (coll.gameObject.CompareTag("Border_Horizontal") || movingVertical)
+			{
+				Vector2 myAnchor = GetComponent<RectTransform> ().anchoredPosition;
+				Vector2 collAnchor = coll.gameObject.GetComponent<RectTransform> ().anchoredPosition;
+
+				myAnchor.y = collAnchor.y - coll.gameObject.GetComponent<RectTransform> ().sizeDelta.y;
+				GetComponent<RectTransform> ().anchoredPosition = myAnchor;
+			}
+
+
+			_state = BoxState.FREEZE;
+		}
+
+		// Moving Down collision
+		if (_CP.y < myPos.y)
+		//if ((movingVertical || floating) && _CP.normal.y > 0f)
+		{
+
+			// If the distance between this instance's centre and the collision object's centre
+			// is small enough, then set occupied accordingly
+			if (isBelow(myPos, _CP, eps))
 			{
 				occupiedBelow = true;
 				belowOccupant = coll.gameObject.GetComponent<BoxController> ();
-
-				_state = BoxState.FREEZE;
 			}
 
-			// Moving Right collision
-			if ((movingHorizontal || floating) && _CP.normal.x < 0f)
+			// If collision with border, push box to the border's peripheral
+			if (coll.gameObject.CompareTag("Border_Horizontal") || movingVertical)
+			{
+				Vector2 myAnchor = GetComponent<RectTransform> ().anchoredPosition;
+				Vector2 collAnchor = coll.gameObject.GetComponent<RectTransform> ().anchoredPosition;
+
+				myAnchor.y = collAnchor.y + coll.gameObject.GetComponent<RectTransform> ().sizeDelta.y;
+				GetComponent<RectTransform> ().anchoredPosition = myAnchor;
+			}
+
+
+			_state = BoxState.FREEZE;
+		}
+
+		// Moving Right collision
+		if (_CP.x > myPos.x)
+		//if ((movingHorizontal || floating) && _CP.normal.x < 0f)
+		{
+
+			// If the distance between this instance's centre and the collision object's centre
+			// is small enough, then set occupied accordingly
+			if (isRight(myPos, _CP, eps))
 			{
 				occupiedRight = true;
 				rightOccupant = coll.gameObject.GetComponent<BoxController> ();
-
-				_state = BoxState.FREEZE;
 			}
-				
-			//--------------------
 
-
-			// BRUSH BY COLLISION CHECKS----------------
-
-			// If Box is moving vertically, and makes contact with another box on its side while enroute then
-			// ignore that collision
-			// If Box is floating vertically, and makes contact with another box on its side while that 
-			// other box is enroute then ignore as well
-			if ((movingVertical && xNormal ) || floating && xNormal) 
+			// If collision with border, push box to the border's peripheral
+			if (coll.gameObject.CompareTag("Border_Vertical") || movingHorizontal)
 			{
-
-				continue;
-			} 
-
-			// TODO Make sure brushing when gliding doesn't halt motion
-			// If Box is moving horizontally, and makes contact with another box (on the side) while enroute then
-			// ignore that collision
-			if (movingHorizontal && yNormal) 
-			{
-				continue;
+				Vector2 myAnchor = GetComponent<RectTransform> ().anchoredPosition;
+				Vector2 collAnchor = coll.gameObject.GetComponent<RectTransform> ().anchoredPosition;
+			
+				myAnchor.x = collAnchor.x - coll.gameObject.GetComponent<RectTransform> ().sizeDelta.x;
+				GetComponent<RectTransform> ().anchoredPosition = myAnchor;
 			}
-		
-			//--------------------------
+
+			_state = BoxState.FREEZE;
 		}
+
+		// Moving Left collision
+		if (_CP.x < myPos.x)
+		//if ((movingHorizontal || floating) && _CP.normal.x > 0f)
+		{
+
+			// If the distance between this instance's centre and the collision object's centre
+			// is small enough, then set occupied accordingly
+			if (isLeft(myPos, _CP, eps)) 
+			{
+				occupiedLeft = true;
+				leftOccupant = coll.gameObject.GetComponent<BoxController> ();
+			}
+
+			// If collision with border, push box to the border's peripheral
+			if (coll.gameObject.CompareTag("Border_Vertical") || movingHorizontal)
+			{
+				Vector2 myAnchor = GetComponent<RectTransform> ().anchoredPosition;
+				Vector2 collAnchor = coll.gameObject.GetComponent<RectTransform> ().anchoredPosition;
+
+				myAnchor.x = collAnchor.x + coll.gameObject.GetComponent<RectTransform> ().sizeDelta.x;
+				GetComponent<RectTransform> ().anchoredPosition = myAnchor;
+			}
+
+
+			_state = BoxState.FREEZE;
+		}
+			
 	}
 
-	public void OnCollisionStay2D(Collision2D coll)
+	public void OnTriggerStay2D(Collider2D coll)
 	{
+		bool movingVertical = (_state == BoxState.MOVINGDOWN) || (_state == BoxState.MOVINGUP) || (_state == BoxState.GLIDINGUP) || (_state == BoxState.GLIDINGDOWN);
+		bool movingHorizontal = (_state == BoxState.GLIDINGLEFT) || (_state == BoxState.GLIDINGRIGHT);
 
 		bool stationary = (_state == BoxState.STATIONARY);
 		bool floating = (_state == BoxState.FLOATING);
+	
+		Vector2 _CP = coll.GetComponent<RectTransform> ().anchoredPosition;
+		Vector2 myPos = GetComponent<RectTransform> ().anchoredPosition;
+		float eps = GetComponent<RectTransform>().sizeDelta.x/2;
 
-
-		//Debug.Log ("Collision Stay!");
-
-		foreach (ContactPoint2D _CP in coll.contacts) 
+		// LINGERING COLLISION CHECKS-----------------------
+		// distanceBetween check is to make sure a corner collision is not being mistaken
+		// for a head on collision.
+		// If FLOATING and with a lingering collision below, set occupiedBelow to true
+		if ((floating || stationary) && isBelow(myPos, _CP, eps) && distanceBetween(coll.gameObject))
 		{
+			occupiedBelow = true;
+			belowOccupant = coll.gameObject.GetComponent <BoxController> ();
 
-			// LINGERING COLLISION CHECKS-----------------------
-			// distanceBetween check is to make sure a corner collision is not being mistaken
-			// for a head on collision.
-			// If FLOATING and with a lingering collision below, set occupiedBelow to true
-			if ((floating || stationary) && _CP.normal.y > 0f && distanceBetween(coll.gameObject.transform))
+			/* ADDITIONAL COLLISION RESLOUTION CHECK FOR IF THIS INSTANCE IS THE ONE IN MOTION*/
+			if (movingVertical) 
 			{
-				occupiedBelow = true;
-				belowOccupant = coll.gameObject.GetComponent <BoxController> ();
-				_state = BoxState.FREEZE;
-				//_ButtonLock = false;
+				myPos.y = _CP.y + coll.GetComponent<RectTransform> ().sizeDelta.y;
+				GetComponent<RectTransform> ().anchoredPosition = myPos;
 			}
 
-			// If FLOATING and with a lingering collision above, set occupiedAbove to true
-			if ((floating || stationary) && _CP.normal.y < 0f &&  distanceBetween(coll.gameObject.transform))
-			{
-				occupiedAbove = true;
-				aboveOccupant = coll.gameObject.GetComponent <BoxController> ();
 
-				_state = BoxState.FREEZE;
-				//_ButtonLock = false;
-			}
-
-			// If FLOATING and with a lingering collision to the left, set occupiedLeft to true
-			if ((floating || stationary) && _CP.normal.x > 0f && distanceBetween(coll.gameObject.transform) )
-			{
-				occupiedLeft = true;
-				leftOccupant = coll.gameObject.GetComponent <BoxController> ();
-
-				_state = BoxState.FREEZE;
-				//_ButtonLock = false;
-			}
-
-			// If FLOATING and with a lingering collision to the right, set occupiedRight to true
-			if ((floating || stationary) && _CP.normal.x < 0f && distanceBetween(coll.gameObject.transform))
-			{
-				occupiedRight = true;
-				rightOccupant = coll.gameObject.GetComponent<BoxController> ();
-
-				_state = BoxState.FREEZE;
-				//_ButtonLock = false;
-			}
-
-			//-----------------------------------
+			_state = BoxState.FREEZE;
+			_ButtonLock = false;
 		}
+
+		// If FLOATING and with a lingering collision above, set occupiedAbove to true
+		if ((floating || stationary) && isAbove(myPos, _CP, eps) &&  distanceBetween(coll.gameObject))
+		{
+			occupiedAbove = true;
+			aboveOccupant = coll.gameObject.GetComponent <BoxController> ();
+
+			/* ADDITIONAL COLLISION RESOLUTION CHECK FOR IF THIS INSTANCE IS THE ONE IN MOTION*/
+			if (movingVertical) 
+			{
+				myPos.y = _CP.y - coll.GetComponent<RectTransform> ().sizeDelta.y;
+				GetComponent<RectTransform> ().anchoredPosition = myPos;
+			}
+
+
+			_state = BoxState.FREEZE;
+			_ButtonLock = false;
+		}
+
+
+		// If FLOATING and with a lingering collision to the left, set occupiedLeft to true
+		if ((floating || stationary) && isLeft(myPos, _CP, eps) && distanceBetween(coll.gameObject) )
+		{
+			occupiedLeft = true;
+			leftOccupant = coll.gameObject.GetComponent <BoxController> ();
+
+			/* ADDITIONAL COLLISION RESOLUTION CHECK FOR IF THIS INSTANCE IS IN MOTION*/
+			if (movingHorizontal) 
+			{
+				myPos.x = _CP.x + coll.GetComponent<RectTransform> ().sizeDelta.x;
+				GetComponent<RectTransform> ().anchoredPosition = myPos;
+			}
+
+			_state = BoxState.FREEZE;
+			_ButtonLock = false;
+		}
+
+		// If FLOATING and with a lingering collision to the right, set occupiedRight to true
+		if ((floating || stationary) && isRight(myPos, _CP, eps) && distanceBetween(coll.gameObject))
+		{
+			occupiedRight = true;
+			rightOccupant = coll.gameObject.GetComponent<BoxController> ();
+
+			/* ADDITIONAL COLLISION RESOLUTION CHECK FOR IF THIS INSTANCE IS IN MOTION*/
+			if (movingHorizontal) 
+			{
+				myPos.x = _CP.x - coll.GetComponent<RectTransform> ().sizeDelta.x;
+				GetComponent<RectTransform> ().anchoredPosition = myPos;
+			}
+
+
+			_state = BoxState.FREEZE;
+			_ButtonLock = false;
+		}
+
+		//-----------------------------------
 	}
 
 
-	public void OnCollisionExit2D(Collision2D coll)
+	public void OnTriggerExit2D(Collider2D coll)
 	{
+		
+		Vector2 _CP = coll.GetComponent<RectTransform> ().anchoredPosition;
+		Vector2 myPos = GetComponent<RectTransform> ().anchoredPosition;
+		float eps = GetComponent<RectTransform>().sizeDelta.x/2;
 
-		foreach (ContactPoint2D _CP in coll.contacts) 
+		// If Collision Point with negative vertical normal exits collision,
+		// assume that this instance no longer has another box immediately above it
+		if ( _CP.y > myPos.y ) 
 		{
-
-			// If Collision Point with negative vertical normal exits collision,
-			// assume that this instance no longer has another box immediately above it
-			if ( _CP.normal.y < 0f ) 
-			{
-				//Debug.Log (name + " Exiting Colliison");
-				occupiedAbove = false;
-				aboveOccupant = null;
-
-			}
-
-			// If Collision Point with positive vertical normal exits collision,
-			// assume that this instance no longer has another box immediately below it
-			if ( _CP.normal.y > 0f ) 
-			{
-				occupiedBelow = false;
-				belowOccupant = null;
-
-			}
-
-			// If Collision Point with positive horizonal normal exits collision,
-			// assume that this instance no longer has another box immediately left of it
-			if ( _CP.normal.x > 0f ) 
-			{
-				occupiedLeft = false;
-				leftOccupant = null;
-
-			}
-
-			// If Collision Point with negative horizontal normal exits collision,
-			// assume that this instance no longer has another box immediately right of it
-			if ( _CP.normal.x < 0f ) 
-			{
-				occupiedRight = false;
-				rightOccupant = null;
-			}
+			occupiedAbove = false;
+			aboveOccupant = null;
 
 		}
+
+		// If Collision Point with positive vertical normal exits collision,
+		// assume that this instance no longer has another box immediately below it
+		if ( _CP.y < myPos.y ) 
+		{
+			occupiedBelow = false;
+			belowOccupant = null;
+
+		}
+
+		// If Collision Point with positive horizonal normal exits collision,
+		// assume that this instance no longer has another box immediately left of it
+		if ( _CP.x < myPos.x ) 
+		{
+			occupiedLeft = false;
+			leftOccupant = null;
+
+		}
+
+		// If Collision Point with negative horizontal normal exits collision,
+		// assume that this instance no longer has another box immediately right of it
+		if ( _CP.x > myPos.x ) 
+		{
+			occupiedRight = false;
+			rightOccupant = null;
+		}
+			
 	}
 
 
 	#endregion
 
+	#region Trigger Proximity Checks
+	/// <summary>
+	/// Checks if paramter pCollPos is directly above this instance up to some epsilon
+	/// </summary>
+	/// <returns><c>true</c>, if above was ised, <c>false</c> otherwise.</returns>
+	/// <param name="p_MyPos">P my position.</param>
+	/// <param name="p_CollPos">P coll position.</param>
+	/// <param name="eps">Eps.</param>
+	private bool isAbove(Vector2 p_MyPos, Vector2 p_CollPos, float eps)
+	{
 
+		if ((p_CollPos.y - p_MyPos.y >= eps) && (Mathf.Abs (p_MyPos.x - p_CollPos.x) < eps)) {
+			return true;
+		} else
+			return false;
+	}
+
+	private bool isBelow(Vector2 p_MyPos, Vector2 p_CollPos, float eps)
+	{
+
+		if ((p_CollPos.y - p_MyPos.y < eps) && (Mathf.Abs (p_MyPos.x - p_CollPos.x) < eps)) {
+			return true;
+		} else
+			return false;
+	}
+
+	private bool isRight(Vector2 p_MyPos, Vector2 p_CollPos, float eps)
+	{
+
+		if ((p_CollPos.x - p_MyPos.x >= eps) && (Mathf.Abs (p_MyPos.y - p_CollPos.y) < eps)) {
+			return true;
+		} else
+			return false;
+	}
+
+	private bool isLeft(Vector2 p_MyPos, Vector2 p_CollPos, float eps)
+	{
+
+		if ((p_CollPos.x - p_MyPos.x < eps) && (Mathf.Abs (p_MyPos.y - p_CollPos.y) < eps)) {
+			return true;
+		} else
+			return false;
+	}
+		
+
+	#endregion
 	// Update is called once per frame
 	void Update () {
 		handleState ();
 		holdPosition ();
 	}
 
+	void FixedUpdate()
+	{
+		
+		if (_state == BoxState.GLIDINGRIGHT) 
+		{
+			//glide ();
+		}
+	}
 
 }

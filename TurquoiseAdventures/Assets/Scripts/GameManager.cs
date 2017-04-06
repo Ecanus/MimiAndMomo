@@ -7,6 +7,16 @@ using UnityEngine.UI;
 public class GameManager : MonoBehaviour {
 
 
+	/// <summary>
+	/// List of all movable boxes ingame
+	/// </summary>
+	public static List<BoxController> Boxes;
+
+	/// <summary>
+	/// Input Manager component of this instance
+	/// </summary>
+	private InputManager _IM;
+
 	#region Highlighted Box Attributes
 	/// <summary>
 	/// The box highlighted on startup
@@ -14,20 +24,32 @@ public class GameManager : MonoBehaviour {
 	[SerializeField]
 	private BoxController _StartBox;
 
+	[SerializeField]
+	private BoxController3D _StartBox3D;
+
 	/// <summary>
 	/// The previously highlighted box
 	/// </summary>
 	public static BoxController _PreviouslyHighlighted;
 
+	public static BoxController3D _PreviouslyHighlighted3D;
+
 	/// <summary>
 	/// The currently highlighted box
 	/// </summary>
 	public static BoxController _CurrentlyHighlighted;
+	public static BoxController3D _CurrentlyHighlighted3D;
 	#endregion
+
 
 	#region SpritesManager Attributes
 	private SpritesManager _SM;
 	#endregion
+
+	void Awake()
+	{
+		Boxes = new List<BoxController> ();
+	}
 
 	// Use this for initialization
 	void Start () {
@@ -35,68 +57,12 @@ public class GameManager : MonoBehaviour {
 		// Need to initialise SpritesManager's attribuetes, and then firstHighlight in that order
 		// so that the firstHighlighted Box doesn't think the highlighted sprite is its default sprite
 		_SM = GetComponent<SpritesManager> ();
+		_IM = GetComponent<InputManager> ();
 		_SM.setSprites ();
 		firstHighlight ();
+	
 	}
-
-	private void handleInput()
-	{
-
-		// NOT CURRENTLY IMPLEMENTED
-		// If _CurrentlyHighlighted is in the process of having a force applied,
-		// no other input will be registered until that force is done being applied
-		if (_CurrentlyHighlighted.getButtonLock ())
-			return; 
-		//-------------------
-
-
-
-		// STANDARD DISPLACEMENT -------------------
-		// Keypress to make currentlyHighlighted box move UPWARDS
-		if (Input.GetKeyDown (KeyCode.Q)) 
-		{
-
-			_CurrentlyHighlighted.setTextTo ("q");
-
-			_CurrentlyHighlighted.setDisplacementAmount (45f);
-			_CurrentlyHighlighted.setState (BoxController.BoxState.POSITIVE);
-
-		}
-
-		// Keypress to make currentlyHighlighted box move DOWNWARDS
-		if (Input.GetKeyDown (KeyCode.W)) 
-		{
-
-			_CurrentlyHighlighted.setTextTo ("w");
-
-			_CurrentlyHighlighted.setDisplacementAmount (-45f);
-			_CurrentlyHighlighted.setState (BoxController.BoxState.NEGATIVE);
-
-		}
-
-		// Keypress to make currentlyHighlighted box return to its startposition
-		if (Input.GetKeyDown (KeyCode.Backspace)) 
-		{
-
-			_CurrentlyHighlighted.setTextTo ("");
-
-			_CurrentlyHighlighted.setState (BoxController.BoxState.RETURNING);
-
-		}
-		//----------------------------------
-
-		//GLIDES -------------------------
-		// Keypress to make currentlyHighlighted box return to its startposition
-		if (Input.GetKeyDown (KeyCode.P)) 
-		{
-			_CurrentlyHighlighted.setTextTo ("p");
-		}
-
-		if (Input.GetKeyDown (KeyCode.O)) 
-		{
-			_CurrentlyHighlighted.setTextTo ("o");
-		}
-	}
+		
 
 
 	/// <summary>
@@ -141,8 +107,27 @@ public class GameManager : MonoBehaviour {
 		_CurrentlyHighlighted.setIsHighlighted (true);
 
 	}
+
+	/// <summary>
+	/// Called at start to initially highlight the StartBox
+	/// </summary>
+	private void firstHighlight3D()
+	{
+		_CurrentlyHighlighted = _StartBox;
+
+		// Get  Image component of the _StartBox
+		Image _boxImage = _StartBox.GetComponent<Image> ();
+
+		// Set the sprite of _StartBox to 'selected' sprite
+		_boxImage.sprite = SpritesManager.Sprites [0];
+
+		_CurrentlyHighlighted.setIsHighlighted (true);
+
+	}
+
+
 	// Update is called once per frame
 	void Update () {
-		handleInput ();
+		_IM.handleInput (_CurrentlyHighlighted);
 	}
 }
