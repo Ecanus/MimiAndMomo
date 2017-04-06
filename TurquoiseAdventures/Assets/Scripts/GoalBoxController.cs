@@ -16,10 +16,14 @@ public class GoalBoxController : MonoBehaviour {
 	}
 
 
+	/// <summary>
+	/// Updates the score text.
+	/// </summary>
 	private void updateScoreText()
 	{
 		_Score.text = "" + _ScoreCount;
 	}
+
 
 	public void OnTriggerEnter2D(Collider2D coll)
 	{
@@ -29,15 +33,21 @@ public class GoalBoxController : MonoBehaviour {
 		destroyBox (coll.gameObject);
 	}
 
-
+	/// <summary>
+	/// Destroys the box.
+	/// </summary>
+	/// <param name="p_Object">P object.</param>
 	private void destroyBox(GameObject p_Object)
 	{
+		// Remove this instance from the GameManager's list of onscreen boxes
 		BoxController box = p_Object.GetComponent<BoxController> ();
 		GameManager.Boxes.Remove (box);
 
+		// Tell GameManager to highlight a new box, at random
 		BoxController temp = GameManager.Boxes [Random.Range (0, GameManager.Boxes.Count)];
 		GameManager.highlight (temp);
 
+		// Finally, destroy this instance
 		Destroy (p_Object);
 	}
 }

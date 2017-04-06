@@ -4,12 +4,21 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
+/// <summary>
+/// Class managing attributes, displacement and collisions of a box in-game
+/// </summary>
 public class BoxController : MonoBehaviour, IPointerClickHandler {
 
+	/// <summary>
+	/// States that a box can be in. Each state determines a distinct functionality and behaviour
+	/// </summary>
 	public enum BoxState 
 	{FREEZE, STATIONARY, POSITIVE, NEGATIVE, SIDERIGHT, SIDELEFT,
 		FLOATING, MOVINGUP, MOVINGDOWN, GLIDINGUP, GLIDINGDOWN, GLIDINGLEFT, GLIDINGRIGHT, RETURNING};
 
+	/// <summary>
+	/// The BoxState of this instance
+	/// </summary>
 	public BoxState _state;
 
 
@@ -19,6 +28,7 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 	/// <summary>
 	/// Bool prevent multiple buttons to be pressed while this instance is having a force applied to it
 	/// </summary>
+	/// NOT IMPLEMENTED YET
 	private bool _ButtonLock;
 
 	/// <summary>
@@ -117,33 +127,45 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		// Get the text of this instance
 		_text = transform.GetChild (0).GetComponent<Text>();
 
+		// Get the rigidbody2D component of this instance
 		_rb = GetComponent<Rigidbody2D> ();
+		// Lock it on all axes
 		_rb.constraints = RigidbodyConstraints2D.FreezeAll;
 
 		// Set this instance's isHighlighted to false at start
 		isHighlighted = false;
 
+
+		// Set its occupied values all to false
 		occupiedAbove = false;
 		occupiedBelow = false;
+		occupiedLeft = false;
+		occupiedRight = false;
 	}
 
 	void Start()
 	{
-		//_rb.constraints = RigidbodyConstraints2D.FreezeAll;
+
 		// Set initial position to this instance's startposition
 		_startPosition = transform.position;
 
+		// Get boxCollider2D component of this instance
 		_boxColl = GetComponent<BoxCollider2D> ();
 		boxCollVec = _boxColl.size;
 
+		// Set movement speed attributes
 		moveSpeed = 10f;
 		glideSpeed = 9f;
 
+		// Add this instance to the GameManager's list of all boxes currently on screen
 		GameManager.Boxes.Add (this);
 	
 	}
 
 	#region State Methods
+	/// <summary>
+	/// Handles behaviour of this instance based on its current state
+	/// </summary>
 	private void handleState()
 	{
 		switch (_state) 
@@ -233,6 +255,10 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		}
 	}
 
+	/// <summary>
+	/// Sets the state of this instance to the parameter p_NewState
+	/// </summary>
+	/// <param name="p_NewState">P new state.</param>
 	public void setState(BoxState p_NewState)
 	{
 		_state = p_NewState;
@@ -257,6 +283,7 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		// Set target position to an offset of box's current position
 		_targetPosition = _startPosition;
 
+		// Determines how this instance should be displaced based on the given string, p_DisplaceType
 		switch (p_DisplaceType) 
 		{
 		case "Vertical":
@@ -302,7 +329,7 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 	}
 
 	/// <summary>
-	/// Displaces the Box upwards, or rightwards, depending on if another box exists immediately above
+	/// Displaces the Box to its targetPosition
 	/// </summary>
 	private void displace()
 	{
@@ -315,7 +342,6 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		}
 
 		// Move the box to its targetPosition
-		//transform.position = Vector3.Lerp (_previousPosition, _targetPosition, 4.5f * Time.deltaTime);
 		transform.position = Vector3.MoveTowards(_previousPosition, _targetPosition, moveSpeed * Time.deltaTime);
 		_previousPosition = transform.position;
 
@@ -323,7 +349,7 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 	}
 
 	/// <summary>
-	/// Displaces the Box upwards, or rightwards, depending on if another box exists immediately above
+	/// Glides the instance towards its target position
 	/// </summary>
 	private void glide()
 	{
@@ -337,7 +363,6 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 
 		// Move the box to its targetPosition
 		transform.position = Vector3.MoveTowards (_previousPosition, _targetPosition, glideSpeed * Time.deltaTime);
-		//_rb.MovePosition(_previousPosition + transform.right * 10f * Time.deltaTime);
 		_previousPosition = transform.position;
 
 
@@ -346,6 +371,7 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 
 	/// <summary>
 	/// Checks whether the original start position is beneath/left or above/right of box's current position
+	/// then returns box back to its start position
 	/// </summary>
 	private void checkDistanceToStart()
 	{
@@ -356,12 +382,14 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		//bool xCheck = (currPos.x - _startPosition.x) >= 0;
 		bool yCheck = (currPos.y - _startPosition.y) >= 0;
 
+		// If higher than start position, move downwards to return
 		if (yCheck) 
 		{
 			_state = BoxState.NEGATIVE;
 			return;
 		}
 
+		// If lower than start position, move upwards
 		else if (!yCheck) 
 		{
 			_state = BoxState.POSITIVE;
@@ -370,6 +398,9 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 
 	}
 
+	/// <summary>
+	/// Resets the start position of this instance to where it is currently
+	/// </summary>
 	private void resetStartPosition()
 	{
 		_startPosition = transform.position;
@@ -403,6 +434,9 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 	#endregion
 
 	#region Glide Methods ------------------
+	/// <summary>
+	/// Handles all checks for if this instance can begin gliding in any direction
+	/// </summary>
 	private void checkCanGlide()
 	{
 		switch (_text.text) 
@@ -475,7 +509,7 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 	#region Proximity Checks
 	/// <summary>
 	/// Checks immediate above this instance to see if a box is present there
-	/// if so, sets the occupiedAbove attribute to true
+	/// if not, begin moving upwards
 	/// </summary>
 	private void checkAbove()
 	{
@@ -499,6 +533,10 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		}
 	}
 
+	/// <summary>
+	/// Checks that this instance can begin gliding upwards. If true, begin to glide
+	/// else, remain in position
+	/// </summary>
 	private void checkGlideUp()
 	{
 
@@ -521,6 +559,10 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 	}
 
 
+	/// <summary>
+	/// Checks that this instance can begin moving downwards. If true, begin to move
+	/// else, remain in position
+	/// </summary>
 	private void checkBelow()
 	{
 
@@ -542,6 +584,10 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		}
 	}
 
+	/// <summary>
+	/// Checks that this instance can begin gliding downwards. If true, begin to move
+	/// else, remain in position
+	/// </summary>
 	private void checkGlideDown()
 	{
 
@@ -563,6 +609,10 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		}
 	}
 
+	/// <summary>
+	/// Checks that this instance can begin moving rightwards. If true, begin to move
+	/// else, remain in position
+	/// </summary>
 	private void checkRight()
 	{
 
@@ -584,6 +634,10 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		}
 	}
 
+	/// <summary>
+	/// Checks that this instance can begin gliding rightwards. If true, begin to move
+	/// else, remain in position
+	/// </summary>
 	private void checkGlideRight()
 	{
 
@@ -605,6 +659,11 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		}
 	}
 
+
+	/// <summary>
+	/// Checks that this instance can begin moving left. If true, begin to move
+	/// else, remain in position
+	/// </summary>
 	private void checkLeft()
 	{
 
@@ -626,6 +685,10 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		}
 	}
 
+	/// <summary>
+	/// Checks that this instance can begin gliding downwards. If true, begin to move
+	/// else, remain in position
+	/// </summary>
 	private void checkGlideLeft()
 	{
 
@@ -673,7 +736,7 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 
 
 
-	#region Box Value modification
+	#region Box Text Value modification
 	/// <summary>
 	/// Sets the text of this instance to given parameter
 	/// </summary>
@@ -705,7 +768,8 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 	{
 		// If already highlighted, do not do anything
 		if (isHighlighted) return;
-		
+
+		// Else, inform GameManager to highlight this instance
 		GameManager.highlight (this);
 	}
 	#endregion
@@ -728,6 +792,7 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 	public void setIsHighlighted(bool p_Value)
 	{
 		isHighlighted = p_Value;
+
 		// If highlighted, make this instance light so it doesn't bump 
 		// other boxes out of the way
 		switch (p_Value) 
@@ -757,16 +822,11 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		float eps = GetComponent<RectTransform>().sizeDelta.x/2;
 
 
-		// Bools to check which side of the box is being made contact with
-		//bool xNormal = (Mathf.Abs (_CP.x) >= 0f);
-		//bool yNormal = (Mathf.Abs (_CP.y) >= 0f);
-
 
 		// HEAD ON COLLISION CHECKS 
 
 		// Moving Up collision
 		if (_CP.y > myPos.y)
-		//if ((movingVertical || floating) && _CP.normal.y < 0f)
 		{
 
 			// If the distance between this instance's centre and the collision object's centre
@@ -793,7 +853,6 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 
 		// Moving Down collision
 		if (_CP.y < myPos.y)
-		//if ((movingVertical || floating) && _CP.normal.y > 0f)
 		{
 
 			// If the distance between this instance's centre and the collision object's centre
@@ -820,7 +879,6 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 
 		// Moving Right collision
 		if (_CP.x > myPos.x)
-		//if ((movingHorizontal || floating) && _CP.normal.x < 0f)
 		{
 
 			// If the distance between this instance's centre and the collision object's centre
@@ -846,7 +904,6 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 
 		// Moving Left collision
 		if (_CP.x < myPos.x)
-		//if ((movingHorizontal || floating) && _CP.normal.x > 0f)
 		{
 
 			// If the distance between this instance's centre and the collision object's centre
@@ -971,7 +1028,7 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 		Vector2 myPos = GetComponent<RectTransform> ().anchoredPosition;
 		float eps = GetComponent<RectTransform>().sizeDelta.x/2;
 
-		// If Collision Point with negative vertical normal exits collision,
+		// If Collision Point of higher vertical value exits,
 		// assume that this instance no longer has another box immediately above it
 		if ( _CP.y > myPos.y ) 
 		{
@@ -980,7 +1037,7 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 
 		}
 
-		// If Collision Point with positive vertical normal exits collision,
+		// If Collision Point of lower vertical value exits,
 		// assume that this instance no longer has another box immediately below it
 		if ( _CP.y < myPos.y ) 
 		{
@@ -989,7 +1046,7 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 
 		}
 
-		// If Collision Point with positive horizonal normal exits collision,
+		// If Collision Point of lower horizontal value exits,
 		// assume that this instance no longer has another box immediately left of it
 		if ( _CP.x < myPos.x ) 
 		{
@@ -998,7 +1055,7 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 
 		}
 
-		// If Collision Point with negative horizontal normal exits collision,
+		// If Collision Point of higher horizontal value exits,
 		// assume that this instance no longer has another box immediately right of it
 		if ( _CP.x > myPos.x ) 
 		{
@@ -1028,6 +1085,13 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 			return false;
 	}
 
+	/// <summary>
+	/// Checks if pCollPos is close enough to this instance to be considered beneath it
+	/// </summary>
+	/// <returns><c>true</c>, if below was ised, <c>false</c> otherwise.</returns>
+	/// <param name="p_MyPos">P my position.</param>
+	/// <param name="p_CollPos">P coll position.</param>
+	/// <param name="eps">Eps.</param>
 	private bool isBelow(Vector2 p_MyPos, Vector2 p_CollPos, float eps)
 	{
 
@@ -1037,6 +1101,13 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 			return false;
 	}
 
+	/// <summary>
+	/// Check if pCollPos is close enough to this instance to be considered to the right of it
+	/// </summary>
+	/// <returns><c>true</c>, if right was ised, <c>false</c> otherwise.</returns>
+	/// <param name="p_MyPos">P my position.</param>
+	/// <param name="p_CollPos">P coll position.</param>
+	/// <param name="eps">Eps.</param>
 	private bool isRight(Vector2 p_MyPos, Vector2 p_CollPos, float eps)
 	{
 
@@ -1046,6 +1117,13 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 			return false;
 	}
 
+	/// <summary>
+	/// Check if pColl pos is close enough to this instance to be considered to the left of it
+	/// </summary>
+	/// <returns><c>true</c>, if left was ised, <c>false</c> otherwise.</returns>
+	/// <param name="p_MyPos">P my position.</param>
+	/// <param name="p_CollPos">P coll position.</param>
+	/// <param name="eps">Eps.</param>
 	private bool isLeft(Vector2 p_MyPos, Vector2 p_CollPos, float eps)
 	{
 
@@ -1059,17 +1137,10 @@ public class BoxController : MonoBehaviour, IPointerClickHandler {
 	#endregion
 	// Update is called once per frame
 	void Update () {
+
 		handleState ();
 		holdPosition ();
 	}
-
-	void FixedUpdate()
-	{
 		
-		if (_state == BoxState.GLIDINGRIGHT) 
-		{
-			//glide ();
-		}
-	}
 
 }

@@ -2,22 +2,30 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Class handling all input from player
+/// </summary>
 public class InputManager : MonoBehaviour {
 
 	/// <summary>
 	/// The movement amount by which all displacement is scaled
 	/// </summary>
-	private float movementAmount;
+	private float displacementAmount;
 
 
 	// Use this for initialization
 	void Start () {
-		movementAmount = 0.66f;
+		// Standard 'unit' of displacement by which boxes are moved
+		displacementAmount = 0.66f;
 
 	}
 
 
 	#region Standard Displacement Methods
+	/// <summary>
+	/// Handles all input that vertically displaces the parameter box
+	/// </summary>
+	/// <param name="p_Box">P box.</param>
 	private void verticalInput(BoxController p_Box)
 	{
 
@@ -25,7 +33,7 @@ public class InputManager : MonoBehaviour {
 		if (Input.GetKeyDown (KeyCode.W)) 
 		{
 			p_Box.setTextTo ("w");
-			p_Box.setDisplacementAmount (1* movementAmount);
+			p_Box.setDisplacementAmount (1* displacementAmount);
 			p_Box.setState (BoxController.BoxState.POSITIVE);
 
 		}
@@ -35,7 +43,7 @@ public class InputManager : MonoBehaviour {
 		if (Input.GetKey(KeyCode.LeftShift) && Input.GetKeyDown (KeyCode.W)) 
 		{
 			p_Box.setTextTo ("W");
-			p_Box.setDisplacementAmount (2 * movementAmount);
+			p_Box.setDisplacementAmount (2 * displacementAmount);
 			p_Box.setState (BoxController.BoxState.POSITIVE);
 
 		}
@@ -45,7 +53,7 @@ public class InputManager : MonoBehaviour {
 		{
 
 			p_Box.setTextTo ("s");
-			p_Box.setDisplacementAmount (-1 * movementAmount);
+			p_Box.setDisplacementAmount (-1 * displacementAmount);
 			p_Box.setState (BoxController.BoxState.NEGATIVE);
 
 		}
@@ -55,16 +63,20 @@ public class InputManager : MonoBehaviour {
 		{
 
 			p_Box.setTextTo ("S");
-			p_Box.setDisplacementAmount (-2 * movementAmount);
+			p_Box.setDisplacementAmount (-2 * displacementAmount);
 			p_Box.setState (BoxController.BoxState.NEGATIVE);
 
 		}
 
 	}
 
+	/// <summary>
+	/// Handles all input that horizontally displaces the parameter box
+	/// </summary>
+	/// <param name="p_Box">P box.</param>
 	private void horizontalInput(BoxController p_Box)
 	{
-
+		/*
 		// LEFT : Tier 1
 		if (Input.GetKeyDown (KeyCode.Q)) 
 		{
@@ -72,7 +84,7 @@ public class InputManager : MonoBehaviour {
 			if (p_Box._state == BoxController.BoxState.STATIONARY) 
 			{
 				p_Box.setTextTo ("q");
-				p_Box.setDisplacementAmount (-1 * movementAmount);
+				p_Box.setDisplacementAmount (-1 * displacementAmount);
 				p_Box.setState (BoxController.BoxState.SIDELEFT);
 			}
 
@@ -85,7 +97,7 @@ public class InputManager : MonoBehaviour {
 			if (p_Box._state == BoxController.BoxState.STATIONARY) 
 			{
 				p_Box.setTextTo ("Q");
-				p_Box.setDisplacementAmount (-2 * movementAmount);
+				p_Box.setDisplacementAmount (-2 * displacementAmount);
 				p_Box.setState (BoxController.BoxState.SIDELEFT);
 			}
 
@@ -98,7 +110,7 @@ public class InputManager : MonoBehaviour {
 			if (p_Box._state == BoxController.BoxState.STATIONARY) 
 			{
 				p_Box.setTextTo ("e");
-				p_Box.setDisplacementAmount (1 * movementAmount);
+				p_Box.setDisplacementAmount (1 * displacementAmount);
 				p_Box.setState (BoxController.BoxState.SIDERIGHT);
 			}
 
@@ -111,19 +123,22 @@ public class InputManager : MonoBehaviour {
 			if (p_Box._state == BoxController.BoxState.STATIONARY) 
 			{
 				p_Box.setTextTo ("E");
-				p_Box.setDisplacementAmount (-2 * movementAmount);
+				p_Box.setDisplacementAmount (-2 * displacementAmount);
 				p_Box.setState (BoxController.BoxState.SIDERIGHT);
 			}
 
-		}
+		}*/
 	}
 	#endregion
 
 
+	/// <summary>
+	/// Handles all input that causes the parameter p_Box to start gliding
+	/// </summary>
+	/// <param name="p_Box">P box.</param>
 	private void glideInput(BoxController p_Box)
 	{
 		//GLIDES -------------------------
-		// Keypress to make currentlyHighlighted box return to its startposition
 		if (Input.GetKeyDown (KeyCode.P)) 
 		{
 			if (p_Box._state == BoxController.BoxState.STATIONARY) 

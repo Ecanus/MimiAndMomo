@@ -108,26 +108,10 @@ public class GameManager : MonoBehaviour {
 
 	}
 
-	/// <summary>
-	/// Called at start to initially highlight the StartBox
-	/// </summary>
-	private void firstHighlight3D()
-	{
-		_CurrentlyHighlighted = _StartBox;
-
-		// Get  Image component of the _StartBox
-		Image _boxImage = _StartBox.GetComponent<Image> ();
-
-		// Set the sprite of _StartBox to 'selected' sprite
-		_boxImage.sprite = SpritesManager.Sprites [0];
-
-		_CurrentlyHighlighted.setIsHighlighted (true);
-
-	}
-
 
 	// Update is called once per frame
 	void Update () {
+
 		_IM.handleInput (_CurrentlyHighlighted);
 	}
 }
